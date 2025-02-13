@@ -40,7 +40,7 @@ def fetch_data_from_api(cookies):
         st.error(f"Error fetching data from API: {e}")
         return None
 
-def filter_table(data, pchange_min, pchange_max, price_min, price_max):
+def filter_table(data, pchange_min, pchange_max, price_min, price_max, turnover_min, turnover_max):
     """
     Filter the data based on user-defined conditions.
     """
@@ -55,10 +55,24 @@ def filter_table(data, pchange_min, pchange_max, price_min, price_max):
             p_change = metadata.get("pChange")
             last_price = metadata.get("lastPrice")
             symbol = metadata.get("symbol")
+            quantity = metadata.get("finalQuantity")
+            value = metadata.get("totalTurnover")
+            w52_Low = metadata.get("yearLow")
+            w52_High = metadata.get("yearHigh")
 
-            if p_change is not None and last_price is not None and symbol is not None:
-                if pchange_min < p_change < pchange_max and price_min < last_price < price_max:
-                    filtered_data.append({"Symbol": symbol, "pChange": p_change, "LastPrice": last_price})
+            if (p_change is not None and last_price is not None and symbol is not None and value is not None):
+                if (pchange_min < p_change < pchange_max and 
+                    price_min < last_price < price_max and 
+                    turnover_min <= value <= turnover_max):
+                    filtered_data.append({
+                        "Symbol": symbol,
+                        "pChange": p_change,
+                        "LastPrice": last_price,
+                        "Quantity": quantity,
+                        "TotalTurnover": value,
+                        "52W_Low": w52_Low,
+                        "52W_High": w52_High
+                    })
 
     if filtered_data:
         df = pd.DataFrame(filtered_data)
@@ -67,6 +81,7 @@ def filter_table(data, pchange_min, pchange_max, price_min, price_max):
         st.warning("No data matching the conditions found.")
 
 # Streamlit UI setup
+
 st.title("NSE Market Data Filter")
 
 # Step 1: Fetch cookies
@@ -82,6 +97,15 @@ if cookies:
         price_min = st.sidebar.number_input("Minimum Price", value=100.0, step=1.0)
         price_max = st.sidebar.number_input("Maximum Price", value=5000.0, step=1.0)
 
+        # New: Turnover filter as a range slider
+        turnover_min, turnover_max = st.sidebar.slider(
+            "Total Turnover Range",
+            min_value=100000,  # Minimum possible turnover
+            max_value=1000000000,  # Maximum possible turnover
+            value=(100000, 500000000),  # Default range
+            step=1000000
+        )
+
         # Step 3: Apply filter button in the sidebar
         if st.sidebar.button("Apply Filter"):
-            filter_table(data, pchange_min, pchange_max, price_min, price_max)
+            filter_table(data, pchange_min, pchange_max, price_min, price_max, turnover_min, turnover_max)
